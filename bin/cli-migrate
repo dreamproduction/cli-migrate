@@ -80,13 +80,15 @@ def do_generate(config):
     print 'Migrations folder does not exist, or your config file is misconfigured. The migrations folder we tried to use: ' + config["scripts_folder"]
     sys.exit(4)
 
-  description = "generic migration task" if len(sys.argv) < 3 else sys.argv[2]
+  description = "Generic migration task" if len(sys.argv) < 3 else sys.argv[2]
+  message = description
   # Generate file name
-  description = '_'.join(description.lower().split())
+  description = '_'.join(description.lower().split()[:5])
   today = datetime.datetime.today()
   filename = config["scripts_folder"] + '/' + today.strftime('%Y-%m-%d-%H:%M:%S') + '__' + description
   # Create file
   file = open(filename, 'a')
+  file.write('echo "' + message + '"')
   file.close()
   # Make it executable
   st = os.stat(filename)
