@@ -1,0 +1,122 @@
+#!/usr/bin/env python
+
+from yaml import load, dump
+from os.path import isfile, exists, realpath
+from subprocess import call
+import os
+import stat
+import sys
+import datetime
+
+# This class provides the functionality we want. You only need to look at
+# this if you want to know how this works. It only needs to be defined
+# once, no need to muck around with its internals.
+class switch(object):
+  def __init__(self, value):
+    self.value = value
+    self.fall = False
+
+  def __iter__(self):
+    """Return the match method once, then stop"""
+    yield self.match
+    raise StopIteration
+
+  def match(self, *args):
+    """Indicate whether or not to enter a case suite"""
+    if self.fall or not args:
+      return True
+    elif self.value in args: # changed for v1.5, see below
+      self.fall = True
+      return True
+    else:
+      return False
+
+def load_config():
+  if not isfile('.cli-migrate.config.yml'):
+    print 'File .cli-migrate.config.yml could not be found. Make sure you have the config file defined, and you are running the cli-migrate command from the same folder.'
+    sys.exit(3)
+
+  f = open('.cli-migrate.config.yml', 'r')
+  config = load(f)
+  return config
+
+def load_state(config):
+  if isfile(config['state_file']):
+    f = open(config['state_file'], 'r')
+    config = load(f)
+    return config
+
+  return {'executed_scripts': []}
+
+def save_state(config, state):
+  f = open(config['state_file'], 'w')
+  f.truncate()
+  f.write(dump(state))
+
+def run_command(config):
+  if not len(sys.argv) > 1 or not sys.argv[1] in ['generate', 'run']:
+    print "cli-migrate <command>"
+    print ""
+    print "where <command> is one of"
+    print " - generate"
+    print " - run"
+    print ""
+    print "For generate, you can pass as the second parameter a description of the migration task."
+    sys.exit(2)
+
+  for case in switch(sys.argv[1]):
+    if case('generate'):
+      do_generate(config)
+      break
+    if case('run'):
+      do_run(config)
+      break
+    if case(): # default, could also just omit condition or 'if True'
+      print "unknown command!"
+      # No need to break here, it'll stop anyway
+
+def do_generate(config):
+  if not exists(config["scripts_folder"]):
+    print 'Migrations folder does not exist, or your config file is misconfigured. The migrations folder we tried to use: ' + config["scripts_folder"]
+    sys.exit(4)
+
+  description = "generic migration task" if len(sys.argv) < 3 else sys.argv[2]
+  # Generate file name
+  description = '_'.join(description.lower().split())
+  today = datetime.datetime.today()
+  filename = config["scripts_folder"] + '/' + today.strftime('%Y-%m-%d-%H:%M:%S') + '__' + description
+  # Create file
+  file = open(filename, 'a')
+  file.close()
+  # Make it executable
+  st = os.stat(filename)
+  os.chmod(filename, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+def do_run(config):
+  folder = config["scripts_folder"]
+  if not exists(folder):
+    print 'Migrations folder does not exist, or your config file is misconfigured. The migrations folder we tried to use: ' + folder
+    sys.exit(4)
+
+  migration_scripts = [ filename for filename in os.listdir(folder) if isfile(folder + '/' + filename) ]
+
+  state = load_state(config)
+  scripts_to_execute = [val for val in migration_scripts if not val in state['executed_scripts']]
+
+  for script in scripts_to_execute:
+    script_fullpath = realpath(folder + '/' + script)
+    result = call(['sh', script_fullpath])
+    if result:
+      save_state(config, state)
+      print "Error while running migration " + script
+      sys.exit(5)
+    state['executed_scripts'].append(script)
+
+  save_state(config, state)
+
+def main():
+  config = load_config()
+  run_command(config)
+
+if __name__ == "__main__":
+  main()

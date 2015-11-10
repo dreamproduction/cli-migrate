@@ -1,0 +1,5 @@
+{
+    "name": "dreamproduction/cli-migrate",
+    "description": "A package for executable scripts migrations management.",
+    "bin": ["bin/cli-migrate"]
+}
