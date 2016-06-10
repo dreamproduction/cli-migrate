@@ -85,7 +85,7 @@ def do_generate(config):
   # Generate file name
   description = '_'.join(description.lower().split()[:5])
   today = datetime.datetime.today()
-  filename = config["scripts_folder"] + '/' + today.strftime('%Y-%m-%d-%H:%M:%S') + '__' + description
+  filename = config["scripts_folder"] + '/' + today.strftime('%Y%m%d-%H%M%S') + '__' + description
   # Create file
   file = open(filename, 'a')
   file.write('echo "' + message + '"')
@@ -104,6 +104,7 @@ def do_run(config):
 
   state = load_state(config)
   scripts_to_execute = [val for val in migration_scripts if not val in state['executed_scripts']]
+  scripts_to_execute.sort()
 
   for script in scripts_to_execute:
     script_fullpath = realpath(folder + '/' + script)
