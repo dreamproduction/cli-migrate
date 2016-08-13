@@ -88,7 +88,8 @@ def do_generate(config):
   filename = config["scripts_folder"] + '/' + today.strftime('%Y%m%d-%H%M%S') + '__' + description
   # Create file
   file = open(filename, 'a')
-  file.write('echo "' + message + '"')
+  file.write('#!/usr/bin/env sh\n')
+  file.write('echo "' + message + '"\n')
   file.close()
   # Make it executable
   st = os.stat(filename)
